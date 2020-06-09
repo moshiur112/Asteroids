@@ -1,0 +1,148 @@
+
+buildscript {
+    repositories {
+        mavenLocal()
+        mavenCentral()
+        maven { url "https://plugins.gradle.org/m2/" }
+        maven { url "https://oss.sonatype.org/content/repositories/snapshots/" }
+        jcenter()
+        google()
+    }
+
+    ext {
+        spotbugsVersion = '1.6.8'
+        toolVersion = '3.1.10'
+    }
+}
+
+plugins {
+    id 'java'
+
+    // Test coverage
+    id 'jacoco'
+
+    // Code style
+    id 'checkstyle'
+
+    // PMD
+    id 'pmd'
+
+    // FindBugs / SpotBugs
+    id "com.github.spotbugs" version "2.0.1" apply false
+}
+
+apply from: "$rootProject.projectDir/gradle/spotbugs.gradle"
+defaultTasks 'clean', 'check'
+
+group 'nl.tudelft.cse.sem.template'
+version '1.0-SNAPSHOT'
+
+sourceCompatibility = 1.8
+
+wrapper {
+    distributionType = Wrapper.DistributionType.ALL
+}
+
+
+allprojects {
+    version = '1.0'
+    ext {
+        appName = "template"
+        gdxVersion = '1.9.10'
+        roboVMVersion = '2.3.7'
+        box2DLightsVersion = '1.4'
+        ashleyVersion = '1.7.0'
+        aiVersion = '1.8.0'
+    }
+
+    repositories {
+        mavenLocal()
+        mavenCentral()
+        jcenter()
+        google()
+        maven { url "https://oss.sonatype.org/content/repositories/snapshots/" }
+        maven { url "https://oss.sonatype.org/content/repositories/releases/" }
+    }
+}
+
+subprojects {
+    apply plugin: 'checkstyle'
+    apply plugin: 'pmd'
+    apply plugin: 'jacoco'
+   
+    checkstyle {
+        toolVersion = '8.25'
+        configFile = rootProject.file('config/checkstyle/checkstyle.xml')
+        configProperties = [
+                'checkstyle.cache.file': "${buildDir}/checkstyle.cache",
+        ]
+        ignoreFailures = false
+        showViolations = true
+    }
+
+    pmd {
+        ignoreFailures = false
+        incrementalAnalysis = false
+    }
+}
+
+project(":desktop") {
+    apply plugin: "java-library"
+
+    dependencies {
+        implementation project(":core")
+        api "com.badlogicgames.gdx:gdx-backend-lwjgl:$gdxVersion"
+        api "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-desktop"
+        api "com.badlogicgames.gdx:gdx-box2d-platform:$gdxVersion:natives-desktop"
+        api "com.badlogicgames.gdx:gdx-freetype-platform:$gdxVersion:natives-desktop"
+        api "com.badlogicgames.gdx:gdx-tools:$gdxVersion"
+        api "com.badlogicgames.gdx:gdx-controllers-desktop:$gdxVersion"
+        api "com.badlogicgames.gdx:gdx-controllers-platform:$gdxVersion:natives-desktop"
+
+    }
+
+}
+
+project(":core") {
+    apply plugin: "java-library"
+
+    dependencies {
+        api "com.badlogicgames.gdx:gdx:$gdxVersion"
+        api "com.badlogicgames.gdx:gdx-box2d:$gdxVersion"
+        api "com.badlogicgames.box2dlights:box2dlights:$box2DLightsVersion"
+        api "com.badlogicgames.gdx:gdx-freetype:$gdxVersion"
+        api "com.badlogicgames.gdx:gdx-controllers:$gdxVersion"
+        // https://mvnrepository.com/artifact/org.powermock/powermock-mockito-release-full
+        testCompile 'org.powermock:powermock-module-junit4:1.5'
+        testCompile 'org.powermock:powermock-api-mockito:1.6.2'
+        testCompile 'org.powermock:powermock-module-junit4-rule-agent:1.6.2'
+        testCompile 'org.powermock:powermock-module-junit4-rule:1.6.2'
+        testCompile 'org.powermock:powermock-module-junit4:1.6.2'
+        // https://mvnrepository.com/artifact/mysql/mysql-connector-java
+        compile group: 'mysql', name: 'mysql-connector-java', version: '8.0.18'
+        compile group: 'at.favre.lib', name: 'bcrypt', version: '0.8.0'
+
+
+    }
+}
+
+task jacocoRootReport(type: org.gradle.testing.jacoco.tasks.JacocoReport) {
+    dependsOn = subprojects.test
+    additionalSourceDirs = files(subprojects.sourceSets.main.allSource.srcDirs)
+    sourceDirectories = files(subprojects.sourceSets.main.allSource.srcDirs)
+    classDirectories = files(subprojects.sourceSets.main.output)
+    executionData = files(subprojects.jacocoTestReport.executionData)
+    reports {
+        html.enabled = true
+        xml.enabled = true
+        csv.enabled = false
+    }
+    onlyIf = {
+        true
+    }
+    doFirst {
+        executionData = files(executionData.findAll {
+            it.exists()
+        })
+    }
+}
